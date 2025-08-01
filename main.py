@@ -12,6 +12,17 @@ class SomeInput(BaseModel):
     # Add other fields as needed for your analysis (e.g., text: str, model:str, parameters, etc.)
 app = FastAPI()
 
+# Health Check (Supports GET and HEAD)
+@app.get("/health", include_in_schema=False)
+@app.head("/health", include_in_schema=False)
+def health_check():
+    return JSONResponse(content={"status": "ok"})
+
+# Ping Endpoint (Accepts All Methods)
+@app.api_route("/ping", methods=["GET", "POST", "HEAD", "OPTIONS"], include_in_schema=False)
+def ping():
+    return {"pong": True}
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
