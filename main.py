@@ -12,7 +12,7 @@ class SomeInput(BaseModel):
     # Add other fields as needed for your analysis (e.g., text: str, model:str, parameters, etc.)
 
 USE_RENDER = True  # Try Render first
-RENDER_URL = "https://your-render-url.onrender.com"  # Replace with actual URL
+RENDER_URL = "https://harmony-gpt.onrender.com"  # Replace with actual URL
 TUNNEL_URL = "https://harmonygpt.loca.lt"            # Secondary fallback
 
 # Try connecting to both servers
