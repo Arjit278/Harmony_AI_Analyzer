@@ -51,6 +51,7 @@ if not os.path.exists(BASE_PATH):
 os.makedirs(BASE_PATH, exist_ok=True)
 
 # === Global Path Constants (used across modules) ===
+ADMIN_DATA_FOLDER = BASE_PATH
 ADMIN_FILE = os.path.join(BASE_PATH, "admin.txt")
 DEMO_LIMIT_FILE = os.path.join(BASE_PATH, "demo_limit.txt")
 USER_FILE = os.path.join(BASE_PATH, "user.txt")
@@ -58,6 +59,9 @@ USER_CHAT_LOG = os.path.join(BASE_PATH, "user_chat_logs.txt")
 USER_ISSUE_LOG = os.path.join(BASE_PATH, "user_issue_log.txt")
 DEMO_ACCESS_FILE = os.path.join(BASE_PATH, "demo_access.txt")
 DUPLICATE_LOG_FILE = os.path.join(BASE_PATH, "duplicate_activity_log.txt")
+CHAT_LOG_FILE = os.path.join(BASE_PATH, "chat_log.txt")
+ADMIN_LOG_PATH = os.path.join(BASE_PATH, "admin_log.txt")
+ISSUE_LOG_FILE = os.path.join(BASE_PATH, "issue_log.txt")
 
 # Pathlib example (for special usage where needed)
 ADMIN_DATA_PATH = Path(BASE_PATH)
