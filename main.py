@@ -10,6 +10,11 @@ import socket, getpass
 class SomeInput(BaseModel):
     user_id: str
     # Add other fields as needed for your analysis (e.g., text: str, model:str, parameters, etc.)
+app = FastAPI()
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 
 USE_RENDER = True  # Try Render first
 RENDER_URL = "https://harmony-gpt.onrender.com"  # Replace with actual URL
@@ -40,8 +45,6 @@ else:
 # Use this to build file/api paths
 def get_path(endpoint):
     return f"{BASE_URL}/{endpoint}"    
-
-app = FastAPI()
 
 # === Base Path Logic (Plan A / Plan B Fallback) ===
 BASE_PATH = os.path.join(os.getcwd(), "harmony_server", "admin_data")  # Plan A
@@ -321,3 +324,11 @@ def serve_consent_log():
 @app.get("/duplicate-logs")
 def serve_duplicate_logs():
     return FileResponse(DUPLICATE_LOG_FILE)
+
+@app.get("/admin-logs")
+def serve_admin_logs():
+    return FileResponse(ADMIN_LOG_PATH)
+
+@app.get("/demo-access")
+def serve_demo_access():
+    return FileResponse(DEMO_ACCESS_FILE)
