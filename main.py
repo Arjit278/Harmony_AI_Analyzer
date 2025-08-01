@@ -4,33 +4,104 @@ from datetime import datetime
 from pydantic import BaseModel
 import os  
 from pathlib import Path
+import os
 import json
 import socket, getpass
 class SomeInput(BaseModel):
     user_id: str
     # Add other fields as needed for your analysis (e.g., text: str, model:str, parameters, etc.)
-    
 
+USE_RENDER = True  # Try Render first
+RENDER_URL = "https://your-render-url.onrender.com"  # Replace with actual URL
+TUNNEL_URL = "https://harmonygpt.loca.lt"            # Secondary fallback
 
-app = FastAPI()  
+# Try connecting to both servers
+def get_available_server():
+    try:
+        r = requests.get(f"{RENDER_URL}/health", timeout=2)
+        if r.status_code == 200:
+            return RENDER_URL
+    except:
+        pass
+    try:
+        r = requests.get(f"{TUNNEL_URL}/health", timeout=2)
+        if r.status_code == 200:
+            return TUNNEL_URL
+    except:
+        pass
+    return None  # No server available
 
-# === File Paths ===  
+BASE_URL = get_available_server()
+if BASE_URL is None:
+    print("❌ No server reachable. Check internet or tunnel status.")
+else:
+    print(f"✅ Connected to server: {BASE_URL}")
 
-BASE_PATH = os.path.join(os.getcwd(), "gomasterg_sync_server", "admin_data")
-ADMIN_DATA_FOLDER = "admin_data"  
-USER_FILE = os.path.join(ADMIN_DATA_FOLDER, "user.txt")  
-CHAT_LOG_FILE = os.path.join(ADMIN_DATA_FOLDER, "user_chat_logs.txt")  
-ISSUE_LOG_FILE = os.path.join(ADMIN_DATA_FOLDER, "user_issue_log.txt")  
-ADMIN_DATA_PATH = Path("admin_data")
-ADMIN_DATA_PATH.mkdir(exist_ok=True)
+# Use this to build file/api paths
+def get_path(endpoint):
+    return f"{BASE_URL}/{endpoint}"    
+
+app = FastAPI()
+
+# === Base Path Logic (Plan A / Plan B Fallback) ===
+BASE_PATH = os.path.join(os.getcwd(), "harmony_server", "admin_data")  # Plan A
+if not os.path.exists(BASE_PATH):
+    BASE_PATH = os.path.join(os.getcwd(), "gomasterg_sync_server", "admin_data")  # Plan B
+
+os.makedirs(BASE_PATH, exist_ok=True)
+
+# === Global Path Constants (used across modules) ===
+ADMIN_FILE = os.path.join(BASE_PATH, "admin.txt")
+DEMO_LIMIT_FILE = os.path.join(BASE_PATH, "demo_limit.txt")
+USER_FILE = os.path.join(BASE_PATH, "user.txt")
+USER_CHAT_LOG = os.path.join(BASE_PATH, "user_chat_logs.txt")
+USER_ISSUE_LOG = os.path.join(BASE_PATH, "user_issue_log.txt")
+DEMO_ACCESS_FILE = os.path.join(BASE_PATH, "demo_access.txt")
+DUPLICATE_LOG_FILE = os.path.join(BASE_PATH, "duplicate_activity_log.txt")
+
+# Pathlib example (for special usage where needed)
+ADMIN_DATA_PATH = Path(BASE_PATH)
 CONSENT_LOG_PATH = ADMIN_DATA_PATH / "consent_log.txt"
-CONSENT_LOG_PATH.parent.mkdir(exist_ok=True)
 
-# Ensure required files exist
-for path in [USER_FILE, CHAT_LOG_FILE, ISSUE_LOG_FILE, CONSENT_LOG_PATH]:
-    if not os.path.exists(path):
-        open(path, "a", encoding="utf-8").close()
+# === Core Files to Sync: Name -> Default Content ===
+FILES_TO_CREATE = {
+    "admin.txt": "",
+    "demo_limit.txt": "3\n",
+    "user.txt": "",
+    "user_chat_logs.txt": "",
+    "user_issue_log.txt": "",
+    "demo_access.txt": "",
+    "duplicate_activity_log.txt": "",
+    "consent_log.txt": ""
+}
 
+from fastapi.responses import FileResponse
+
+@app.get("/download-exe")
+def download_harmony_ai():
+    return FileResponse("Harmony_AI.exe", media_type='application/octet-stream', filename="Harmony_AI.exe")
+
+@app.post("/sync")
+def sync_files():
+    """
+    Endpoint to sync system files from the server to the user's laptop/desktop.
+    If a file doesn't exist, it will be created with default content.
+    """
+    result = {}
+    for file_name, default_content in FILES_TO_CREATE.items():
+        file_path = os.path.join(BASE_PATH, file_name)
+        if not os.path.exists(file_path):
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(default_content)
+            result[file_name] = "created"
+        else:
+            result[file_name] = "already exists"
+
+    return {
+        "status": "success",
+        "base_path_used": BASE_PATH,
+        "synced_files": result
+    }
 
 # === DEVICE ID ===
 def get_device_id():
@@ -166,6 +237,20 @@ def log_chat(user_id: str = Form(...), message: str = Form(...)):
 
     return JSONResponse(content={"status": "chat logged"})  
 
+class FeedbackPayload(BaseModel):
+    user_id: str
+    engine: str
+    model: str
+    feedback: str
+
+@app.post("/log-feedback/")
+async def log_feedback(request: Request):
+    data = await request.json()
+    with open(ADMIN_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(f"\n[{datetime.now()}] | User: {data['user_id']} | Model: {data['engine']} - {data['model']}\n")
+        f.write(f"{data['message']}\n---\n")
+    return {"status": "logged"}
+
 # === ANALYSIS LOGGING ===  
 @app.post("/log-analysis")  
 def log_analysis(  
@@ -196,3 +281,39 @@ def read_admin_data():
 
     data_files = [f for f in os.listdir(base_dir) if os.path.isfile(os.path.join(base_dir, f))]
     return {"files": data_files}
+
+from fastapi.responses import FileResponse
+
+# === Serve All Core Files Individually (For Harmony_AI.py/.exe to pull remotely) ===
+
+@app.get("/admin-log")
+def serve_admin_log():
+    return FileResponse(ADMIN_FILE)
+
+@app.get("/demo-limit")
+def serve_demo_limit():
+    return FileResponse(DEMO_LIMIT_FILE)
+
+@app.get("/user-list")
+def serve_user_list():
+    return FileResponse(USER_FILE)
+
+@app.get("/chat-logs")
+def serve_chat_logs():
+    return FileResponse(USER_CHAT_LOG)
+
+@app.get("/issue-log")
+def serve_issue_logs():
+    return FileResponse(USER_ISSUE_LOG)
+
+@app.get("/access-list")
+def serve_access_list():
+    return FileResponse(DEMO_ACCESS_FILE)
+
+@app.get("/consent-log")
+def serve_consent_log():
+    return FileResponse(CONSENT_LOG_PATH)
+
+@app.get("/duplicate-logs")
+def serve_duplicate_logs():
+    return FileResponse(DUPLICATE_LOG_FILE)
