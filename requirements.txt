@@ -1,6 +1,6 @@
+google-generativeai
 fastapi
 uvicorn
-llama-index==0.9.48
 sentence-transformers
 faiss-cpu
 transformers
@@ -17,3 +17,6 @@ requests
 python-multipart
 pydantic
 aiofiles
+ollama
+streamlit
+fpdf2
